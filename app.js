@@ -5,8 +5,8 @@ const generateBtn = document.getElementById("generateBtn");
 const flashcardBtn = document.getElementById("flashcardBtn");
 const pdfBtn = document.getElementById("pdfBtn");
 
-const notesInput = document.getElementById("notesInput");
 const apiKeyInput = document.getElementById("apiKey");
+const notesInput = document.getElementById("notesInput");
 const questionType = document.getElementById("questionType");
 const difficulty = document.getElementById("difficulty");
 const questionCount = document.getElementById("questionCount");
@@ -17,7 +17,7 @@ function setStatus(text) {
 
 function validateInputs() {
   if (!apiKeyInput.value.trim()) {
-    alert("Please enter your OpenAI API key.");
+    alert("Please enter your Hugging Face API key.\nGet free at: huggingface.co/settings/tokens");
     return false;
   }
   if (!notesInput.value.trim()) {
@@ -27,24 +27,18 @@ function validateInputs() {
   return true;
 }
 
-async function callOpenAI(prompt) {
+async function callHuggingFace(prompt) {
   const apiKey = apiKeyInput.value.trim();
   
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
+        messages: [{role: "user", content: prompt}],
         temperature: 0.7,
         max_tokens: 2000
       })
@@ -52,13 +46,13 @@ async function callOpenAI(prompt) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.error?.message || "API request failed");
+      throw new Error(errorData.error?.message || errorData.error || "API request failed");
     }
 
     const data = await response.json();
     return data.choices[0].message.content;
   } catch (error) {
-    throw new Error(`OpenAI API Error: ${error.message}`);
+    throw new Error(`Hugging Face API Error: ${error.message}`);
   }
 }
 
@@ -172,7 +166,7 @@ ${notes}
 
 Generate ${count} questions now:`;
 
-    const aiContent = await callOpenAI(prompt);
+    const aiContent = await callHuggingFace(prompt);
     const questions = parseQuestions(aiContent);
 
     if (questions.length === 0) {
@@ -208,7 +202,7 @@ ${notes}
 
 Generate 10 flashcards now:`;
 
-    const aiContent = await callOpenAI(prompt);
+    const aiContent = await callHuggingFace(prompt);
     const flashcards = parseFlashcards(aiContent);
 
     if (flashcards.length === 0) {
