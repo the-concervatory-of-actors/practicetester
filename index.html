@@ -1,86 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Practice Test Generator</title>
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Conservatory Seats</title>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
+        body {
+            background: #1a1a1a; color: white; margin: 0; padding: 20px; 
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+        h1 { color: #d49b6e; font-size: 22px; margin-top: 10px; text-align: center; }
+        h2 { font-size: 16px; font-weight: normal; color: #aaa; margin-top: -5px; }
+        
+        .grid-container { width: 100%; max-width: 500px; margin: 20px 0; overflow-x: auto; }
+        .grid { display: grid; grid-template-columns: 60px repeat(6, 1fr); gap: 8px; }
+        .row-label { display: flex; align-items: center; justify-content: flex-end; color: #aaa; font-size: 13px; padding-right: 5px; }
+        .seat {
+            aspect-ratio: 1; border: 1px solid #555; border-radius: 6px; background: #2a2a2a;
+            display: flex; align-items: center; justify-content: center; font-size: 14px;
+            cursor: pointer; transition: 0.2s; user-select: none;
+        }
+        .seat.avail:hover { border-color: #d49b6e; background: #333; }
+        .seat.taken { background: #8b0000; border-color: #d32f2f; cursor: not-allowed; opacity: 0.8; }
+        .seat.sel { background: #2e7d32; border-color: #66bb6a; }
+
+        .input-area { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+        input {
+            width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #444;
+            background: #2a2a2a; color: white; font-size: 16px; outline: none;
+        }
+        input:focus { border-color: #d49b6e; }
+        button {
+            width: 100%; padding: 14px; border: none; border-radius: 8px;
+            background: #d49b6e; color: #1a1a1a; font-size: 17px; font-weight: bold; cursor: pointer;
+        }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #msg { margin-top: 15px; font-weight: bold; text-align: center; min-height: 20px; }
+        .ok { color: #66bb6a; }
+        .fail { color: #ff5252; }
+        #loader { color: #888; margin: 20px 0; display: none; }
+    </style>
 </head>
 <body>
 
-  <header class="hero">
-    <div class="overlay"></div>
+    <h1>The Conservatory of Actors</h1>
+    <h2>Select Your Seat</h2>
 
-    <div class="hero-content">
-      <h1>AI Practice Test Generator</h1>
-      <p>Create practice tests, flashcards, and study PDFs instantly using AI.</p>
+    <div id="loader">Loading seats...</div>
+    <div class="grid-container"><div class="grid" id="seatGrid"></div></div>
+
+    <div class="input-area">
+        <input type="text" id="nameInput" placeholder="Enter your name" autocomplete="off">
+        <button id="claimBtn" onclick="claimSeat()">CLAIM SEAT</button>
     </div>
-  </header>
+    <div id="msg"></div>
 
-  <main>
+    <script>
+        // 👇 PASTE YOUR CLOUDFLARE WORKER URL HERE
+        const API_URL = "https://fancy-firefly-495e.harrisen-wang.workers.dev";
 
-    <section class="generator-panel">
-      <h2>Generator Settings</h2>
+        const rows = ["VIPR", "b", "c", "d", "e"];
+        const nums = [1,2,3,4,5,6];
+        let taken = {};
+        let selected = null;
 
-      <div class="grid">
+        async function load() {
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('seatGrid').innerHTML = '';
+            document.getElementById('msg').innerText = '';
+            selected = null;
 
-        <div class="card">
-          <label>Hugging Face API Key (Free)</label>
-          <input type="password" id="apiKey" placeholder="hf_..." />
-          <small style="color: #aaa; margin-top: 5px; display: block; font-size: 12px;">Get free at <a href="https://huggingface.co/settings/tokens" target="_blank" style="color: #3b82f6;">huggingface.co/settings/tokens</a></small>
-        </div>
+            try {
+                const res = await fetch(API_URL + '/seats');
+                const data = await res.json();
+                taken = {};
+                data.forEach(s => { taken[s.seat_id] = s.user_name; });
 
-        <div class="card">
-          <label>Question Type</label>
-          <select id="questionType">
-            <option>Multiple Choice</option>
-            <option>True / False</option>
-            <option>Short Answer</option>
-            <option>Fill in the Blank</option>
-            <option>Essay</option>
-            <option>Mixed</option>
-          </select>
-        </div>
+                rows.forEach(row => {
+                    let label = document.createElement('div');
+                    label.className = 'row-label';
+                    label.innerText = 'Row ' + row;
+                    document.getElementById('seatGrid').appendChild(label);
 
-        <div class="card">
-          <label>Difficulty</label>
-          <select id="difficulty">
-            <option>Easy</option>
-            <option>Medium</option>
-            <option>Hard</option>
-          </select>
-        </div>
+                    nums.forEach(n => {
+                        let id = row + n;
+                        let btn = document.createElement('div');
+                        btn.className = 'seat';
+                        btn.innerText = n;
+                        btn.dataset.id = id;
 
-        <div class="card">
-          <label>Number of Questions</label>
-          <input type="number" id="questionCount" value="10" min="1" max="100" />
-        </div>
+                        if (taken[id]) {
+                            btn.classList.add('taken');
+                        } else {
+                            btn.classList.add('avail');
+                            btn.onclick = () => selectSeat(id);
+                        }
+                        document.getElementById('seatGrid').appendChild(btn);
+                    });
+                });
+            } catch(e) {
+                document.getElementById('msg').innerText = 'Error loading seats. Please refresh.';
+                document.getElementById('msg').className = 'fail';
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
 
-      </div>
+        function selectSeat(id) {
+            if (selected) {
+                let prev = document.querySelector(`.seat[data-id="${selected}"]`);
+                if(prev) { prev.classList.remove('sel'); prev.className = 'seat avail'; prev.onclick = () => selectSeat(selected); }
+            }
+            selected = id;
+            let el = document.querySelector(`.seat[data-id="${id}"]`);
+            el.classList.add('sel');
+        }
 
-      <div class="notes-section">
-        <label>Paste Study Notes</label>
-        <textarea id="notesInput" placeholder="Paste notes here..."></textarea>
-      </div>
+        async function claimSeat() {
+            let name = document.getElementById('nameInput').value.trim();
+            let msg = document.getElementById('msg');
+            let btn = document.getElementById('claimBtn');
+            
+            if (!selected) { msg.innerText = 'Please select a seat first.'; msg.className = 'fail'; return; }
+            if (!name) { msg.innerText = 'Please enter your name.'; msg.className = 'fail'; return; }
 
-      <div class="button-row">
-        <button id="generateBtn">Generate Questions</button>
-        <button id="flashcardBtn">Generate Flashcards</button>
-        <button id="pdfBtn">Export PDF</button>
-      </div>
-    </section>
+            btn.disabled = true;
+            msg.innerText = 'Processing...';
+            msg.className = '';
 
-    <section class="output-section">
-      <div class="section-header">
-        <h2>Generated Content</h2>
-        <span id="status">Ready</span>
-      </div>
+            try {
+                const res = await fetch(API_URL + '/claim', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ seatId: selected, name: name })
+                });
+                const data = await res.json();
 
-      <div id="output"></div>
-    </section>
+                if (data.message === 'Seat claimed!') {
+                    msg.innerText = `${name}, you claimed ${selected}!`;
+                    msg.className = 'ok';
+                    document.getElementById('nameInput').value = '';
+                    load(); // Refresh grid
+                } else {
+                    msg.innerText = data.message || 'Something went wrong.';
+                    msg.className = 'fail';
+                    load();
+                }
+            } catch(e) {
+                msg.innerText = 'Network error. Try again.';
+                msg.className = 'fail';
+            } finally {
+                btn.disabled = false;
+            }
+        }
 
-  </main>
-
-  <script src="app.js"></script>
+        // Run on load
+        load();
+    </script>
 </body>
 </html>
